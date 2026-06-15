@@ -1,0 +1,4 @@
+heycyan-glasses-sdk
+bleak
+requests
+pillow
