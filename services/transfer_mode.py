@@ -36,7 +36,8 @@ class HeyCyanTransferMode:
             await asyncio.sleep(5)
 
             self.transfer_mode_enabled = True
-            print("Transfer mode marked as enabled.")
+            print("Transfer mode command sent.")
+            print("Please verify that the glasses Wi-Fi SSID is visible before continuing.")
             return True
 
         except Exception as e:

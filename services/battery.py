@@ -41,5 +41,5 @@ class HeyCyanBattery:
         except Exception as e:
             print("Battery read failed.")
             print("Reason:", e)
-            print("\nNext step: choose option 3 and list BLE services/characteristics.")
+            print("\nNext step: choose option 4 and list BLE services/characteristics.")
             return None

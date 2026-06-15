@@ -71,7 +71,7 @@ class HeyCyanConnection:
             self.notifications_enabled = False
             print("Could not enable notifications with current notify UUID.")
             print("Reason:", e)
-            print("After connecting, choose option 3 to list BLE services/characteristics.")
+            print("After connecting, choose option 4 to list BLE services/characteristics.")
             return False
 
     async def disable_notifications(self):
