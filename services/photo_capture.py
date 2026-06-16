@@ -1,4 +1,5 @@
 from config import HEYCYAN_COMMAND_CHAR_UUID, PHOTO_CAPTURE_COMMAND
+from utils.logger import logger
 
 
 class HeyCyanPhotoCapture:
@@ -19,6 +20,7 @@ class HeyCyanPhotoCapture:
             print("BLE is not connected. Please connect first.")
             return False
 
+        logger.info(f"Sending photo capture command to {HEYCYAN_COMMAND_CHAR_UUID}")
         print("\nSending photo capture command...")
 
         try:
@@ -28,10 +30,12 @@ class HeyCyanPhotoCapture:
                 response=True
             )
 
+            logger.info("Photo capture command sent successfully.")
             print("Photo capture command sent successfully.")
             return True
 
         except Exception as e:
+            logger.error(f"Photo capture failed: {e}")
             print("Photo capture failed.")
             print("Reason:", e)
             print("\nNext step: list BLE services/characteristics and confirm command characteristic UUID.")

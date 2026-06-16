@@ -2,6 +2,7 @@ import os
 import requests
 from urllib.parse import urlparse
 from config import DOWNLOAD_FOLDER
+from utils.logger import logger
 
 
 class HeyCyanDownloadService:
@@ -23,6 +24,7 @@ class HeyCyanDownloadService:
 
     def download_file(self, url, filename=None):
         if not url:
+            logger.error("Download failed: URL is empty.")
             print("Download failed: URL is empty.")
             return None
 
@@ -31,6 +33,7 @@ class HeyCyanDownloadService:
 
         save_path = os.path.join(DOWNLOAD_FOLDER, filename)
 
+        logger.info(f"Download started: {url}")
         print(f"\nDownload started: {url}")
         print(f"Saving to: {save_path}")
 
@@ -51,10 +54,12 @@ class HeyCyanDownloadService:
                                 progress = (downloaded / total_size) * 100
                                 print(f"Download progress: {progress:.2f}%", end="\r")
 
+            logger.info(f"Download completed: {save_path}")
             print("\nDownload completed.")
             return save_path
 
         except Exception as e:
+            logger.error(f"Download failed for {url}: {e}")
             print("\nDownload failed.")
             print("Reason:", e)
             return None
@@ -83,6 +88,7 @@ class HeyCyanDownloadService:
 
         downloaded_files = []
 
+        logger.info(f"Downloading all media files. Count: {len(media_list)}")
         print(f"\nDownloading all media files. Count: {len(media_list)}")
 
         for index, media_item in enumerate(media_list, start=1):
@@ -91,6 +97,7 @@ class HeyCyanDownloadService:
             url = media_service.get_download_url(media_item)
 
             if not url:
+                logger.warning(f"Skipping item {index}. Could not create URL.")
                 print("Skipping item. Could not create URL:", media_item)
                 continue
 
@@ -99,5 +106,6 @@ class HeyCyanDownloadService:
             if save_path:
                 downloaded_files.append(save_path)
 
+        logger.info(f"Download all completed. Success count: {len(downloaded_files)}")
         print(f"\nDownload all completed. Success count: {len(downloaded_files)}")
         return downloaded_files

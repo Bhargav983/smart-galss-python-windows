@@ -1,5 +1,6 @@
 import asyncio
 from config import HEYCYAN_COMMAND_CHAR_UUID, TRANSFER_MODE_COMMAND
+from utils.logger import logger
 
 
 class HeyCyanTransferMode:
@@ -21,6 +22,7 @@ class HeyCyanTransferMode:
             print("BLE is not connected. Please connect first.")
             return False
 
+        logger.info(f"Sending transfer mode command to {HEYCYAN_COMMAND_CHAR_UUID}")
         print("\nSending transfer mode command...")
 
         try:
@@ -30,6 +32,7 @@ class HeyCyanTransferMode:
                 response=True
             )
 
+            logger.info("Transfer mode command sent.")
             print("Transfer mode command sent.")
             print("Waiting for glasses to enable Wi-Fi transfer mode...")
 
@@ -41,6 +44,7 @@ class HeyCyanTransferMode:
             return True
 
         except Exception as e:
+            logger.error(f"Transfer mode failed: {e}")
             print("Transfer mode failed.")
             print("Reason:", e)
             print("\nNext step: confirm command characteristic UUID and transfer command bytes.")

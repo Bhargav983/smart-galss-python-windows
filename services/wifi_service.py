@@ -1,14 +1,23 @@
 import subprocess
 import time
+import ctypes
 from config import GLASSES_WIFI_SSID, GLASSES_WIFI_PASSWORD, GLASSES_DEVICE_IP
+from utils.logger import logger
 
 
 class HeyCyanWifiService:
     def __init__(self):
         self.connected = False
 
+    def is_admin(self):
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+
     def run_command(self, command):
         try:
+            logger.info(f"Executing Wi-Fi command: {command}")
             result = subprocess.run(
                 command,
                 capture_output=True,
@@ -16,9 +25,13 @@ class HeyCyanWifiService:
                 shell=True
             )
 
+            if result.stderr:
+                logger.error(f"Command error: {result.stderr}")
+
             return result.stdout, result.stderr
 
         except Exception as e:
+            logger.error(f"Execution error: {e}")
             return "", str(e)
 
     def show_available_networks(self):
@@ -44,6 +57,10 @@ class HeyCyanWifiService:
         return stdout
 
     def create_wifi_profile(self, ssid=GLASSES_WIFI_SSID, password=GLASSES_WIFI_PASSWORD):
+        if not self.is_admin():
+            print("\nWARNING: Not running as Administrator. Wi-Fi profile creation might fail.")
+            logger.warning("Attempting Wi-Fi profile creation without Admin privileges.")
+
         print(f"\nCreating Wi-Fi profile for SSID: {ssid}")
 
         profile_xml = f"""<?xml version="1.0"?>
@@ -106,10 +123,12 @@ class HeyCyanWifiService:
 
         if self.is_connected_to_ssid(ssid):
             self.connected = True
+            logger.info(f"Successfully connected to Wi-Fi: {ssid}")
             print("Connected to glasses Wi-Fi.")
             return True
 
         self.connected = False
+        logger.error(f"Failed to connect to Wi-Fi: {ssid}")
         print("Could not confirm glasses Wi-Fi connection.")
         return False
 
@@ -130,8 +149,10 @@ class HeyCyanWifiService:
         print(stdout)
 
         if "TTL=" in stdout.upper():
+            logger.info(f"Device {ip} is reachable via ping.")
             print("Device is reachable.")
             return True
 
+        logger.warning(f"Device {ip} is not reachable via ping.")
         print("Device is not reachable.")
         return False

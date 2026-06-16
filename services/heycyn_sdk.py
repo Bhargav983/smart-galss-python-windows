@@ -7,23 +7,15 @@ from services.transfer_mode import HeyCyanTransferMode
 from services.wifi_service import HeyCyanWifiService
 from services.media_service import HeyCyanMediaService
 from services.download_service import HeyCyanDownloadService
+from utils.logger import logger
 
 
 class HeyCyanWindowsSDK:
     """
     Main SDK wrapper for the Windows MVP.
 
-    This file only combines all service modules.
-    Actual feature logic is kept separately in:
-    scanner.py
-    connection.py
-    battery.py
-    diagnostics.py
-    photo_capture.py
-    transfer_mode.py
-    wifi_service.py
-    media_service.py
-    download_service.py
+    This file combines all service modules and exposes clean methods
+    for main.py. Actual feature logic is kept separately in service files.
     """
 
     def __init__(self):
@@ -42,6 +34,8 @@ class HeyCyanWindowsSDK:
         self.media = HeyCyanMediaService()
         self.download = HeyCyanDownloadService()
 
+        logger.info("HeyCyanWindowsSDK initialized.")
+
     # -----------------------------
     # BLE scan / connection
     # -----------------------------
@@ -50,19 +44,28 @@ class HeyCyanWindowsSDK:
         return await self.scanner.scan_glasses(timeout=timeout)
 
     def print_devices(self, devices):
-        self.scanner.print_devices(devices)
+        return self.scanner.print_devices(devices)
 
     def select_device_from_terminal(self, devices):
         return self.scanner.select_device_from_terminal(devices)
 
-    async def connect_selected_device(self, selected_device):
-        return await self.connection.connect(selected_device)
+    async def connect_selected_device(self, selected_device, retries=2):
+        """
+        Connect to selected BLE device.
+
+        retries is passed to connection.py so Windows BLE can retry
+        if the first connection attempt fails.
+        """
+        return await self.connection.connect(selected_device, retries=retries)
 
     async def disconnect(self):
         return await self.connection.disconnect()
 
     def is_ble_connected(self):
         return self.connection.is_ble_connected()
+
+    def get_ble_client(self):
+        return self.connection.get_client()
 
     # -----------------------------
     # BLE notifications
@@ -124,6 +127,12 @@ class HeyCyanWindowsSDK:
     def check_device_reachable(self):
         return self.wifi.check_device_reachable()
 
+    def is_wifi_connected(self):
+        """
+        Returns last known Wi-Fi connection state from wifi_service.
+        """
+        return getattr(self.wifi, "connected", False)
+
     # -----------------------------
     # Media
     # -----------------------------
@@ -152,3 +161,37 @@ class HeyCyanWindowsSDK:
 
     def download_all(self):
         return self.download.download_all(self.media)
+
+    # -----------------------------
+    # Status summary
+    # -----------------------------
+
+    def get_status_summary(self):
+        """
+        Useful for main.py header/debugging.
+        """
+        return {
+            "ble_connected": self.is_ble_connected(),
+            "notifications_enabled": getattr(self.connection, "notifications_enabled", False),
+            "transfer_mode_enabled": self.is_transfer_mode_enabled(),
+            "wifi_connected": self.is_wifi_connected(),
+            "media_count": self.get_media_count(),
+            "last_notification": self.get_last_notification_data(),
+        }
+
+    def print_status_summary(self):
+        status = self.get_status_summary()
+
+        print("\nCurrent Status")
+        print("-" * 40)
+        print(f"BLE Connected          : {status['ble_connected']}")
+        print(f"Notifications Enabled  : {status['notifications_enabled']}")
+        print(f"Transfer Mode Enabled  : {status['transfer_mode_enabled']}")
+        print(f"Wi-Fi Connected        : {status['wifi_connected']}")
+        print(f"Media Count            : {status['media_count']}")
+        print(f"Last Notification      : {status['last_notification']}")
+        print("-" * 40)
+
+        logger.info(f"Status summary: {status}")
+
+        return status

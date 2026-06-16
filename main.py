@@ -1,6 +1,17 @@
 import asyncio
-from config import SCAN_TIMEOUT
+import inspect
+from config import (
+    SCAN_TIMEOUT,
+    KNOWN_GLASSES_ADDRESS,
+    KNOWN_GLASSES_NAME,
+    KNOWN_GLASSES_NAME_PREFIX,
+)
 from services.heycyn_sdk import HeyCyanWindowsSDK
+from utils.logger import logger
+
+
+AUTO_STEP_DELAY_SECONDS = 2
+AUTO_SCAN_RETRY_DELAY_SECONDS = 5
 
 
 def print_header(sdk):
@@ -22,112 +33,156 @@ def print_header(sdk):
 
 
 def print_menu():
-    print("\nBLE / Diagnostics")
-    print("1.  Scan and connect Bluetooth device")
-    print("2.  Enable BLE notifications")
-    print("3.  Get battery value")
-    print("4.  List BLE services/characteristics")
-    print("5.  Capture photo")
-    print("6.  Enable transfer mode")
+    print("\nChoose")
+    print("1. Auto connect, capture, and download latest photo")
+    print("2. BLE diagnostics")
+    print("3. Exit")
 
-    print("\nWi-Fi / Gallery")
-    print("7.  Show available Wi-Fi networks")
-    print("8.  Show current Wi-Fi")
-    print("9.  Connect to glasses Wi-Fi")
-    print("10. Check device reachable")
-    print("11. Check media service")
-    print("12. Fetch media config")
-    print("13. Fetch media list")
-    print("14. Show media count")
-    print("15. Show latest media")
-    print("16. Download latest photo")
-    print("17. Download all photos")
 
-    print("\nApp")
-    print("18. Disconnect BLE")
-    print("19. Exit")
+def is_expected_glasses(device):
+    name = device.get("name") or ""
+    address = device.get("address") or ""
+
+    return (
+        address.upper() == KNOWN_GLASSES_ADDRESS.upper()
+        or name == KNOWN_GLASSES_NAME
+        or name.upper().startswith(KNOWN_GLASSES_NAME_PREFIX.upper())
+        or device.get("is_heycyn_match", False)
+    )
+
+
+async def wait_for_expected_glasses(sdk):
+    attempt = 1
+
+    while True:
+        print(f"\nLooking for expected HeyCyan glasses. Scan attempt {attempt}...")
+        logger.info(f"Auto flow BLE scan attempt {attempt}")
+
+        devices = await sdk.scan_glasses(timeout=SCAN_TIMEOUT)
+
+        for device in devices:
+            if is_expected_glasses(device):
+                print("\nAuto-detected HeyCyan glasses:")
+                print(f"Name: {device['name']}")
+                print(f"Address: {device['address']}")
+                print("Selecting this device automatically.")
+                logger.info(
+                    f"Auto flow selected glasses: {device['name']} ({device['address']})"
+                )
+                return device
+
+        message = (
+            f"Expected HeyCyan glasses not found. Waiting "
+            f"{AUTO_SCAN_RETRY_DELAY_SECONDS}s before retry..."
+        )
+        print(message)
+        logger.warning(message)
+        await asyncio.sleep(AUTO_SCAN_RETRY_DELAY_SECONDS)
+        attempt += 1
+
+
+async def run_auto_step(label, action, delay=AUTO_STEP_DELAY_SECONDS):
+    print(f"\n--- {label} ---")
+    logger.info(f"Auto flow step started: {label}")
+
+    try:
+        result = action()
+
+        if inspect.isawaitable(result):
+            result = await result
+
+        if result is False or result is None:
+            message = f"Auto flow step did not complete successfully: {label}"
+            print(message)
+            logger.error(message)
+        else:
+            logger.info(f"Auto flow step completed: {label}")
+
+        if delay:
+            await asyncio.sleep(delay)
+
+        return result
+
+    except Exception as e:
+        print(f"{label} failed.")
+        print("Reason:", e)
+        logger.exception(f"Auto flow step failed: {label}")
+
+        if delay:
+            await asyncio.sleep(delay)
+
+        return None
 
 
 async def scan_and_connect(sdk):
-    devices = await sdk.scan_glasses(timeout=SCAN_TIMEOUT)
-    sdk.print_devices(devices)
+    selected = await wait_for_expected_glasses(sdk)
+    connected = await sdk.connect_selected_device(selected, retries=3)
 
-    selected = sdk.select_device_from_terminal(devices)
+    if connected:
+        print("\nConnected successfully.")
+        logger.info("Auto flow BLE connection completed.")
+        return True
 
-    if selected:
-        connected = await sdk.connect_selected_device(selected)
+    print("\nConnection failed.")
+    logger.error("Auto flow BLE connection failed.")
+    return False
 
-        if connected:
-            print("\nConnected successfully.")
-            print("Notifications will be enabled automatically if the notify UUID is correct.")
-        else:
-            print("\nConnection failed.")
+
+async def run_auto_flow(sdk):
+    print("\nStarting automatic HeyCyan flow...")
+    logger.info("Automatic HeyCyan flow started.")
+
+    connected = await scan_and_connect(sdk)
+
+    if not connected:
+        print("Could not connect to the expected glasses. Auto flow stopped.")
+        return
+
+    await asyncio.sleep(AUTO_STEP_DELAY_SECONDS)
+
+    await run_auto_step("Enable BLE notifications", sdk.enable_notifications)
+    await run_auto_step("Get battery value", sdk.get_battery)
+    await run_auto_step("Capture photo", sdk.capture_photo)
+    await run_auto_step("Enable transfer mode", sdk.enable_transfer_mode)
+    await run_auto_step("Show available Wi-Fi networks", sdk.show_wifi_networks)
+    await run_auto_step("Connect to glasses Wi-Fi", sdk.connect_wifi)
+    await run_auto_step("Check device reachable", sdk.check_device_reachable)
+    await run_auto_step("Check media service", sdk.check_media_service)
+    await run_auto_step("Fetch media config", sdk.fetch_media_config)
+    await run_auto_step("Fetch media list", sdk.fetch_media_list)
+
+    count = await run_auto_step("Show media count", sdk.get_media_count, delay=1)
+    print(f"\nMedia count: {count if count is not None else 0}")
+    logger.info(f"Auto flow media count: {count if count is not None else 0}")
+
+    latest = await run_auto_step("Show latest media", sdk.get_latest_media, delay=1)
+    print(f"\nLatest media: {latest}")
+    logger.info(f"Auto flow latest media: {latest}")
+
+    downloaded = await run_auto_step("Download latest photo", sdk.download_latest)
+
+    if downloaded:
+        print(f"\nLatest photo downloaded: {downloaded}")
+        logger.info(f"Auto flow downloaded latest photo: {downloaded}")
+
+    print("\nAutomatic HeyCyan flow finished.")
+    logger.info("Automatic HeyCyan flow finished.")
 
 
 async def handle_choice(choice, sdk):
     if choice == "1":
-        await scan_and_connect(sdk)
+        await run_auto_flow(sdk)
 
     elif choice == "2":
-        await sdk.enable_notifications()
-
-    elif choice == "3":
-        await sdk.get_battery()
-
-    elif choice == "4":
         await sdk.list_services()
 
-    elif choice == "5":
-        await sdk.capture_photo()
-
-    elif choice == "6":
-        await sdk.enable_transfer_mode()
-
-    elif choice == "7":
-        sdk.show_wifi_networks()
-
-    elif choice == "8":
-        sdk.show_current_wifi()
-
-    elif choice == "9":
-        sdk.connect_wifi()
-
-    elif choice == "10":
-        sdk.check_device_reachable()
-
-    elif choice == "11":
-        sdk.check_media_service()
-
-    elif choice == "12":
-        sdk.fetch_media_config()
-
-    elif choice == "13":
-        sdk.fetch_media_list()
-
-    elif choice == "14":
-        count = sdk.get_media_count()
-        print(f"\nMedia count: {count}")
-
-    elif choice == "15":
-        latest = sdk.get_latest_media()
-        print(f"\nLatest media: {latest}")
-
-    elif choice == "16":
-        sdk.download_latest()
-
-    elif choice == "17":
-        sdk.download_all()
-
-    elif choice == "18":
-        await sdk.disconnect()
-
-    elif choice == "19":
+    elif choice == "3":
         await sdk.disconnect()
         print("Exiting app.")
         return False
 
     else:
-        print("Invalid option. Please try again.")
+        print("Invalid option. Please choose 1, 2, or 3.")
 
     return True
 
@@ -136,8 +191,7 @@ async def main():
     sdk = HeyCyanWindowsSDK()
 
     print("\nStarting HeyCyan Windows MVP...")
-    print("Recommended test order:")
-    print("1 → 4 → 2 → 3 → 5 → 6 → 9 → 10 → 11 → 13 → 14 → 16")
+    print("Select option 1 to auto connect, capture, connect Wi-Fi, and download the latest photo.")
 
     while True:
         print_header(sdk)
@@ -160,6 +214,10 @@ async def main():
             print("\nUnexpected error occurred.")
             print("Reason:", e)
             print("You can continue testing from the menu.")
+            logger.exception("Unexpected error in main menu loop.")
+
+    if sdk.is_ble_connected():
+        await sdk.disconnect()
 
 
 if __name__ == "__main__":

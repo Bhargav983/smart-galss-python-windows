@@ -1,5 +1,6 @@
 import requests
 from config import MEDIA_CONFIG_URL, MEDIA_LIST_URL, MEDIA_BASE_URL
+from utils.logger import logger
 
 
 class HeyCyanMediaService:
@@ -7,11 +8,13 @@ class HeyCyanMediaService:
         self.media_list = []
 
     def check_media_service(self):
+        logger.info(f"Checking media service at {MEDIA_BASE_URL}")
         print("\nChecking media service...")
 
         try:
             response = requests.get(MEDIA_BASE_URL, timeout=5)
 
+            logger.info(f"Media service status: {response.status_code}")
             print("Media service status:", response.status_code)
 
             if response.status_code in [200, 301, 302, 403, 404]:
@@ -22,16 +25,19 @@ class HeyCyanMediaService:
             return False
 
         except Exception as e:
+            logger.error(f"Media service not reachable: {e}")
             print("Media service not reachable.")
             print("Reason:", e)
             return False
 
     def fetch_media_config(self):
+        logger.info(f"Fetching media config from {MEDIA_CONFIG_URL}")
         print("\nFetching media config...")
 
         try:
             response = requests.get(MEDIA_CONFIG_URL, timeout=10)
 
+            logger.info(f"Config status: {response.status_code}")
             print("Config status:", response.status_code)
             print("Config response preview:")
             print(response.text[:500])
@@ -42,21 +48,25 @@ class HeyCyanMediaService:
             return None
 
         except Exception as e:
+            logger.error(f"Failed to fetch media config: {e}")
             print("Failed to fetch media config.")
             print("Reason:", e)
             return None
 
     def fetch_media_list(self):
+        logger.info(f"Fetching media list from {MEDIA_LIST_URL}")
         print("\nFetching media list...")
 
         try:
             response = requests.get(MEDIA_LIST_URL, timeout=10)
 
+            logger.info(f"Media list status: {response.status_code}")
             print("Media list status:", response.status_code)
             print("Media list response preview:")
             print(response.text[:1000])
 
             if response.status_code != 200:
+                logger.error("Media list request failed.")
                 print("Media list request failed.")
                 return []
 
@@ -77,10 +87,12 @@ class HeyCyanMediaService:
             else:
                 self.media_list = []
 
+            logger.info(f"Media count loaded: {len(self.media_list)}")
             print(f"Media count loaded: {len(self.media_list)}")
             return self.media_list
 
         except Exception as e:
+            logger.error(f"Failed to fetch media list: {e}")
             print("Failed to fetch media list.")
             print("Reason:", e)
             self.media_list = []
