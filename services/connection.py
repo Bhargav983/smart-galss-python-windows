@@ -179,6 +179,7 @@ class HeyCyanConnection:
         self.client = None
         self.is_connected = False
         self.notifications_enabled = False
+        
 
     def get_client(self):
         return self.client
