@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+from datetime import datetime
 from bleak import BleakClient
 from config import HEYCYAN_NOTIFY_CHAR_UUIDS
 from utils.heycyn_sdk_probe import find_notification_function, import_candidate_modules
@@ -88,6 +89,7 @@ class HeyCyanConnection:
             "sender": str(sender),
             "data": data,
             "hex": hex_data,
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
         }
         self.notification_history.append(notification)
 
@@ -117,6 +119,7 @@ class HeyCyanConnection:
         print("\nEnabling BLE notifications...")
 
         self.enabled_notify_uuids = []
+        failed_notify_uuids = []
 
         for notify_uuid in HEYCYAN_NOTIFY_CHAR_UUIDS:
             logger.info(f"Enabling notifications on UUID: {notify_uuid}")
@@ -131,6 +134,7 @@ class HeyCyanConnection:
                 logger.info(f"BLE notifications enabled: {notify_uuid}")
 
             except Exception as e:
+                failed_notify_uuids.append(notify_uuid)
                 print(f"Could not enable notifications: {notify_uuid}")
                 print("Reason:", e)
                 logger.exception(f"Failed to enable BLE notifications: {notify_uuid}")
@@ -143,6 +147,14 @@ class HeyCyanConnection:
             for notify_uuid in self.enabled_notify_uuids:
                 print(f"- {notify_uuid}")
 
+            if failed_notify_uuids:
+                print("\nFailed notification UUIDs:")
+
+                for notify_uuid in failed_notify_uuids:
+                    print(f"- {notify_uuid}")
+
+            logger.info(f"Enabled notification UUIDs: {self.enabled_notify_uuids}")
+            logger.info(f"Failed notification UUIDs: {failed_notify_uuids}")
             return True
 
         print("Could not enable any BLE notification UUID.")

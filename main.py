@@ -37,6 +37,7 @@ def print_menu():
     print("1. Auto connect, capture, and download latest photo")
     print("2. BLE diagnostics")
     print("3. Exit")
+    print("4. Test photo command candidates")
 
 
 def is_expected_glasses(device):
@@ -146,9 +147,9 @@ async def run_auto_flow(sdk):
     photo_ok = await run_auto_step("Capture photo", sdk.capture_photo)
 
     if photo_ok is not True:
-        print("\nPhoto capture failed. Stopping before transfer mode.")
+        print("\nPhoto capture was not confirmed. Stopping before transfer mode.")
         print("Run option 2 and send the BLE service/characteristic output.")
-        logger.error("Auto flow stopped because photo capture failed.")
+        logger.error("Auto flow stopped because photo capture was not confirmed.")
         return
 
     transfer_ok = await run_auto_step("Enable transfer mode", sdk.enable_transfer_mode)
@@ -209,8 +210,19 @@ async def handle_choice(choice, sdk):
         print("Exiting app.")
         return False
 
+    elif choice == "4":
+        if not sdk.is_ble_connected():
+            connected = await scan_and_connect(sdk)
+
+            if not connected:
+                print("Could not connect for photo command candidate testing.")
+                return True
+
+        await sdk.enable_notifications()
+        await sdk.test_photo_command_candidates()
+
     else:
-        print("Invalid option. Please choose 1, 2, or 3.")
+        print("Invalid option. Please choose 1, 2, 3, or 4.")
 
     return True
 

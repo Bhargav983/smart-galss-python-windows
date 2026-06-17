@@ -110,6 +110,9 @@ class HeyCyanWindowsSDK:
     async def capture_photo(self):
         return await self.photo_capture.capture_photo()
 
+    async def test_photo_command_candidates(self):
+        return await self.photo_capture.test_photo_command_candidates()
+
     # -----------------------------
     # Transfer mode
     # -----------------------------

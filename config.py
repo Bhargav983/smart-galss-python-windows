@@ -40,6 +40,46 @@ BATTERY_LEVEL_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
 # Temporary command bytes
 # PHOTO_CAPTURE_COMMAND = bytes([0x01])
 PHOTO_CAPTURE_COMMAND = bytes([0x02, 0x01, 0x01])
+PHOTO_CAPTURE_COMMANDS = [
+    bytes([0x02, 0x01, 0x01]),
+    bytes([0x02, 0x01]),
+    bytes([0x01]),
+    bytes([0x02]),
+    bytes([0x03]),
+    bytes([0x01, 0x01]),
+    bytes([0x02, 0x02]),
+    bytes([0x03, 0x01]),
+    bytes([0x04]),
+    bytes([0x05]),
+]
+
+BLE_COMMAND_NOTIFY_PAIRS = [
+    {
+        "name": "Nordic UART",
+        "command_uuid": "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+        "notify_uuid": "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    },
+    {
+        "name": "AE01 / AE02",
+        "command_uuid": "0000ae01-0000-1000-8000-00805f9b34fb",
+        "notify_uuid": "0000ae02-0000-1000-8000-00805f9b34fb",
+    },
+    {
+        "name": "AE03 / AE04",
+        "command_uuid": "0000ae03-0000-1000-8000-00805f9b34fb",
+        "notify_uuid": "0000ae04-0000-1000-8000-00805f9b34fb",
+    },
+    {
+        "name": "AE3B / AE3C",
+        "command_uuid": "0000ae3b-0000-1000-8000-00805f9b34fb",
+        "notify_uuid": "0000ae3c-0000-1000-8000-00805f9b34fb",
+    },
+    {
+        "name": "DE5B",
+        "command_uuid": "de5bf72a-d711-4e47-af26-65e3012a5dc7",
+        "notify_uuid": "de5bf729-d711-4e47-af26-65e3012a5dc7",
+    },
+]
 TRANSFER_MODE_COMMAND = bytes([0x02])
 
 # Glasses Wi-Fi details
