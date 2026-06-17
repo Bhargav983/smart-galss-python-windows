@@ -9,100 +9,99 @@ class HeyCyanDiagnostics:
         client = self.connection.get_client()
 
         if not client or not client.is_connected:
+            print("BLE is not connected. Cannot list services.")
             logger.warning("Diagnostics requested but BLE is not connected.")
-            print("BLE is not connected. Please connect first.")
-            return
-
-        logger.info("Starting BLE service/characteristic listing.")
-        print("\nListing BLE services and characteristics...\n")
-
-        try:
-            services = await client.get_services()
-            notify_candidates = []
-            write_candidates = []
-            battery_candidates = []
-
-            for service in services:
-                logger.info(f"Service Found: {service.uuid}")
-                print(f"Service: {service.uuid}")
-
-                for char in service.characteristics:
-                    properties = [prop.lower() for prop in char.properties]
-                    logger.info(f"  - Char: {char.uuid} Prop: {char.properties}")
-                    print(f"  Characteristic: {char.uuid}")
-                    print(f"  Properties: {char.properties}")
-
-                    if "notify" in properties or "indicate" in properties:
-                        notify_candidates.append(char)
-
-                    if "write" in properties or "write-without-response" in properties:
-                        write_candidates.append(char)
-
-                    description = getattr(char, "description", "") or ""
-                    lower_description = description.lower()
-                    lower_uuid = char.uuid.lower()
-
-                    if (
-                        "read" in properties
-                        and (
-                            "battery" in lower_description
-                            or "2a19" in lower_uuid
-                            or "batt" in lower_description
-                        )
-                    ):
-                        battery_candidates.append(char)
-
-                print("-" * 70)
-
-            self.print_suggestions(
-                notify_candidates,
-                write_candidates,
-                battery_candidates,
-            )
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to list services: {e}")
-            print("Failed to list services.")
-            print("Reason:", e)
             return False
 
-    def print_suggestions(self, notify_candidates, write_candidates, battery_candidates):
-        print("\nSuggested candidates")
-        print("-" * 70)
+        print("\nListing BLE services and characteristics...\n")
+        logger.info("Listing BLE services and characteristics.")
 
-        self.print_candidate_group(
-            "Notify / indicate characteristic candidates",
-            notify_candidates,
-        )
-        self.print_candidate_group(
-            "Write / write-without-response characteristic candidates",
-            write_candidates,
-        )
-        self.print_candidate_group(
-            "Readable battery-like characteristic candidates",
-            battery_candidates,
-        )
+        try:
+            # Bleak 3.x uses client.services property.
+            # Older examples may use await client.get_services(), but that fails here.
+            services = client.services
 
-        print("\nUse these suggestions to update config.py if the current UUIDs fail.")
-        logger.info(
-            "Diagnostics suggestions - notify: %s, write: %s, battery: %s",
-            [char.uuid for char in notify_candidates],
-            [char.uuid for char in write_candidates],
-            [char.uuid for char in battery_candidates],
-        )
+            if not services:
+                print("No BLE services found.")
+                logger.warning("No BLE services found from client.services.")
+                return False
 
-    def print_candidate_group(self, title, candidates):
-        print(f"\n{title}:")
+            notify_candidates = []
+            write_candidates = []
+            read_candidates = []
 
-        if not candidates:
-            print("  None found")
-            return
+            for service in services:
+                print("=" * 80)
+                print(f"Service UUID : {service.uuid}")
+                print(f"Service Desc : {getattr(service, 'description', '')}")
+                print("=" * 80)
 
-        for char in candidates:
-            description = getattr(char, "description", "") or ""
-            print(f"  UUID: {char.uuid}")
-            print(f"  Properties: {char.properties}")
+                logger.info(f"Service UUID: {service.uuid}")
 
-            if description:
-                print(f"  Description: {description}")
+                for char in service.characteristics:
+                    properties = list(char.properties)
+
+                    print(f"  Characteristic UUID : {char.uuid}")
+                    print(f"  Description         : {getattr(char, 'description', '')}")
+                    print(f"  Properties          : {properties}")
+                    print("-" * 80)
+
+                    logger.info(
+                        f"Characteristic UUID: {char.uuid}, Properties: {properties}"
+                    )
+
+                    if "notify" in properties or "indicate" in properties:
+                        notify_candidates.append(char.uuid)
+
+                    if "write" in properties or "write-without-response" in properties:
+                        write_candidates.append(char.uuid)
+
+                    if "read" in properties:
+                        read_candidates.append(char.uuid)
+
+            print("\nSuggested UUID Candidates")
+            print("=" * 80)
+
+            print("\nNotify / Indicate candidates:")
+            if notify_candidates:
+                for uuid in notify_candidates:
+                    print(f"  HEYCYAN_NOTIFY_CHAR_UUID = \"{uuid}\"")
+            else:
+                print("  No notify/indicate characteristic found.")
+
+            print("\nWrite / Command candidates:")
+            if write_candidates:
+                for uuid in write_candidates:
+                    print(f"  HEYCYAN_COMMAND_CHAR_UUID = \"{uuid}\"")
+            else:
+                print("  No write/write-without-response characteristic found.")
+
+            print("\nRead candidates:")
+            if read_candidates:
+                for uuid in read_candidates:
+                    print(f"  Possible read/battery UUID = \"{uuid}\"")
+            else:
+                print("  No read characteristic found.")
+
+            print("\nNext step:")
+            print("1. Copy notify candidate into HEYCYAN_NOTIFY_CHAR_UUID")
+            print("2. Copy write candidate into HEYCYAN_COMMAND_CHAR_UUID")
+            print("3. Test option 1 again")
+            print("4. If multiple candidates exist, test one by one")
+
+            logger.info(f"Notify candidates: {notify_candidates}")
+            logger.info(f"Write candidates: {write_candidates}")
+            logger.info(f"Read candidates: {read_candidates}")
+
+            return {
+                "notify_candidates": notify_candidates,
+                "write_candidates": write_candidates,
+                "read_candidates": read_candidates,
+            }
+
+        except Exception as e:
+            print("\nFailed to list services.")
+            print("Reason:", e)
+
+            logger.exception("Failed to list BLE services.")
+            return False

@@ -80,6 +80,15 @@ class HeyCyanWindowsSDK:
     def get_last_notification_data(self):
         return self.connection.get_last_notification_data()
 
+    def clear_notification_history(self):
+        return self.connection.clear_notification_history()
+
+    def get_notification_history(self):
+        return self.connection.get_notification_history()
+
+    def get_enabled_notify_uuids(self):
+        return self.connection.get_enabled_notify_uuids()
+
     # -----------------------------
     # BLE diagnostics
     # -----------------------------
@@ -173,6 +182,7 @@ class HeyCyanWindowsSDK:
         return {
             "ble_connected": self.is_ble_connected(),
             "notifications_enabled": getattr(self.connection, "notifications_enabled", False),
+            "enabled_notify_uuids": self.get_enabled_notify_uuids(),
             "transfer_mode_enabled": self.is_transfer_mode_enabled(),
             "wifi_connected": self.is_wifi_connected(),
             "media_count": self.get_media_count(),
@@ -186,6 +196,7 @@ class HeyCyanWindowsSDK:
         print("-" * 40)
         print(f"BLE Connected          : {status['ble_connected']}")
         print(f"Notifications Enabled  : {status['notifications_enabled']}")
+        print(f"Enabled Notify UUIDs   : {status['enabled_notify_uuids']}")
         print(f"Transfer Mode Enabled  : {status['transfer_mode_enabled']}")
         print(f"Wi-Fi Connected        : {status['wifi_connected']}")
         print(f"Media Count            : {status['media_count']}")

@@ -14,13 +14,29 @@ HEYCYAN_SERVICE_UUIDS = [
     "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e",
 ]
 
-# Standard BLE battery level characteristic
+# # Standard BLE battery level characteristic
+# BATTERY_LEVEL_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
+
+# # HeyCyan command/notify placeholders
+# HEYCYAN_COMMAND_CHAR_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
+# HEYCYAN_NOTIFY_CHAR_UUID = "0000fff2-0000-1000-8000-00805f9b34fb"
+
+HEYCYAN_COMMAND_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+HEYCYAN_NOTIFY_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+HEYCYAN_NOTIFY_CHAR_UUIDS = [
+    "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    "0000ae02-0000-1000-8000-00805f9b34fb",
+    "0000ae04-0000-1000-8000-00805f9b34fb",
+    "0000ae05-0000-1000-8000-00805f9b34fb",
+    "00004a02-0000-1000-8000-00805f9b34fb",
+    "0000ae3c-0000-1000-8000-00805f9b34fb",
+    "de5bf729-d711-4e47-af26-65e3012a5dc7",
+    "0000fee3-0000-1000-8000-00805f9b34fb",
+]
+
+# Standard battery UUID is not available in diagnostics.
+# Keep this for now, but battery may still fail.
 BATTERY_LEVEL_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
-
-# HeyCyan command/notify placeholders
-HEYCYAN_COMMAND_CHAR_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
-HEYCYAN_NOTIFY_CHAR_UUID = "0000fff2-0000-1000-8000-00805f9b34fb"
-
 # Temporary command bytes
 # PHOTO_CAPTURE_COMMAND = bytes([0x01])
 PHOTO_CAPTURE_COMMAND = bytes([0x02, 0x01, 0x01])

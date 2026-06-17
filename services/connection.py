@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 from bleak import BleakClient
-from config import HEYCYAN_NOTIFY_CHAR_UUID
+from config import HEYCYAN_NOTIFY_CHAR_UUIDS
 from utils.heycyn_sdk_probe import find_notification_function, import_candidate_modules
 from utils.logger import logger
 
@@ -13,6 +13,8 @@ class HeyCyanConnection:
         self.is_connected = False
         self.notifications_enabled = False
         self.last_notification_data = None
+        self.enabled_notify_uuids = []
+        self.notification_history = []
 
     async def connect(self, selected_device, retries=2):
         if not selected_device:
@@ -82,11 +84,17 @@ class HeyCyanConnection:
         self.last_notification_data = data
 
         hex_data = data.hex(" ")
+        notification = {
+            "sender": str(sender),
+            "data": data,
+            "hex": hex_data,
+        }
+        self.notification_history.append(notification)
 
         print("\nNotification received")
-        print(f"From: {sender}")
+        print(f"Sender UUID: {sender}")
         print(f"Raw bytes: {data}")
-        print(f"Hex: {hex_data}")
+        print(f"Hex data: {hex_data}")
 
         logger.info(f"Notification from {sender}: {hex_data}")
 
@@ -107,30 +115,42 @@ class HeyCyanConnection:
 
         logger.info("Using BLE UUID fallback")
         print("\nEnabling BLE notifications...")
-        logger.info(f"Enabling notifications on UUID: {HEYCYAN_NOTIFY_CHAR_UUID}")
 
-        try:
-            await self.client.start_notify(
-                HEYCYAN_NOTIFY_CHAR_UUID,
-                self.notification_handler
-            )
+        self.enabled_notify_uuids = []
 
-            self.notifications_enabled = True
-            print("BLE notifications enabled.")
-            logger.info("BLE notifications enabled.")
+        for notify_uuid in HEYCYAN_NOTIFY_CHAR_UUIDS:
+            logger.info(f"Enabling notifications on UUID: {notify_uuid}")
+
+            try:
+                await self.client.start_notify(
+                    notify_uuid,
+                    self.notification_handler
+                )
+                self.enabled_notify_uuids.append(notify_uuid)
+                print(f"BLE notifications enabled: {notify_uuid}")
+                logger.info(f"BLE notifications enabled: {notify_uuid}")
+
+            except Exception as e:
+                print(f"Could not enable notifications: {notify_uuid}")
+                print("Reason:", e)
+                logger.exception(f"Failed to enable BLE notifications: {notify_uuid}")
+
+        self.notifications_enabled = bool(self.enabled_notify_uuids)
+
+        if self.notifications_enabled:
+            print("\nEnabled notification UUIDs:")
+
+            for notify_uuid in self.enabled_notify_uuids:
+                print(f"- {notify_uuid}")
+
             return True
 
-        except Exception as e:
-            self.notifications_enabled = False
-
-            print("Could not enable notifications with current notify UUID.")
-            print("Reason:", e)
-            print("After connecting, choose option 2 to list BLE services/characteristics.")
-            print("Look for characteristic with property: notify / indicate.")
-            print("Then update HEYCYAN_NOTIFY_CHAR_UUID in config.py.")
-
-            logger.exception("Failed to enable BLE notifications.")
-            return False
+        print("Could not enable any BLE notification UUID.")
+        print("After connecting, choose option 2 to list BLE services/characteristics.")
+        print("Look for characteristic with property: notify / indicate.")
+        print("Then update HEYCYAN_NOTIFY_CHAR_UUIDS in config.py.")
+        logger.error("No BLE notification UUIDs could be enabled.")
+        return False
 
     async def try_sdk_notifications(self):
         imported_modules, failed_imports = import_candidate_modules()
@@ -196,6 +216,7 @@ class HeyCyanConnection:
     async def disable_notifications(self):
         if not self.client or not self.client.is_connected:
             self.notifications_enabled = False
+            self.enabled_notify_uuids = []
             return
 
         if not self.notifications_enabled:
@@ -203,17 +224,19 @@ class HeyCyanConnection:
 
         print("\nDisabling BLE notifications...")
 
-        try:
-            await self.client.stop_notify(HEYCYAN_NOTIFY_CHAR_UUID)
-            self.notifications_enabled = False
-            print("BLE notifications disabled.")
-            logger.info("BLE notifications disabled.")
+        for notify_uuid in list(self.enabled_notify_uuids):
+            try:
+                await self.client.stop_notify(notify_uuid)
+                print(f"BLE notifications disabled: {notify_uuid}")
+                logger.info(f"BLE notifications disabled: {notify_uuid}")
 
-        except Exception as e:
-            self.notifications_enabled = False
-            print("Could not disable notifications.")
-            print("Reason:", e)
-            logger.exception("Failed to disable notifications.")
+            except Exception as e:
+                print(f"Could not disable notifications: {notify_uuid}")
+                print("Reason:", e)
+                logger.exception(f"Failed to disable notifications: {notify_uuid}")
+
+        self.notifications_enabled = False
+        self.enabled_notify_uuids = []
 
     async def disconnect(self):
         if self.client and self.client.is_connected:
@@ -230,6 +253,7 @@ class HeyCyanConnection:
         self.client = None
         self.is_connected = False
         self.notifications_enabled = False
+        self.enabled_notify_uuids = []
 
     async def disconnect_silent(self):
         try:
@@ -248,6 +272,7 @@ class HeyCyanConnection:
         self.client = None
         self.is_connected = False
         self.notifications_enabled = False
+        self.enabled_notify_uuids = []
         
 
     def get_client(self):
@@ -258,6 +283,16 @@ class HeyCyanConnection:
 
     def get_last_notification_data(self):
         return self.last_notification_data
+
+    def clear_notification_history(self):
+        self.notification_history = []
+        self.last_notification_data = None
+
+    def get_notification_history(self):
+        return list(self.notification_history)
+
+    def get_enabled_notify_uuids(self):
+        return list(self.enabled_notify_uuids)
 
     def print_connection_help(self):
         print("\nConnection failed after retries.")
