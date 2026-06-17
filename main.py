@@ -142,14 +142,35 @@ async def run_auto_flow(sdk):
 
     await run_auto_step("Enable BLE notifications", sdk.enable_notifications)
     await run_auto_step("Get battery value", sdk.get_battery)
-    await run_auto_step("Capture photo", sdk.capture_photo)
-    await run_auto_step("Enable transfer mode", sdk.enable_transfer_mode)
+
+    photo_ok = await run_auto_step("Capture photo", sdk.capture_photo)
+
+    if photo_ok is not True:
+        print("\nPhoto capture failed. Stopping before transfer mode.")
+        print("Run option 2 and send the BLE service/characteristic output.")
+        logger.error("Auto flow stopped because photo capture failed.")
+        return
+
+    transfer_ok = await run_auto_step("Enable transfer mode", sdk.enable_transfer_mode)
+
+    if transfer_ok is not True:
+        print("\nTransfer mode failed. Stopping before Wi-Fi/media/download.")
+        print("Run option 2 and send the BLE service/characteristic output.")
+        logger.error("Auto flow stopped because transfer mode failed.")
+        return
+
     await run_auto_step("Show available Wi-Fi networks", sdk.show_wifi_networks)
     await run_auto_step("Connect to glasses Wi-Fi", sdk.connect_wifi)
     await run_auto_step("Check device reachable", sdk.check_device_reachable)
     await run_auto_step("Check media service", sdk.check_media_service)
     await run_auto_step("Fetch media config", sdk.fetch_media_config)
-    await run_auto_step("Fetch media list", sdk.fetch_media_list)
+
+    media_list = await run_auto_step("Fetch media list", sdk.fetch_media_list)
+
+    if media_list is False or media_list is None:
+        print("\nMedia list failed. Stopping before latest media/download.")
+        logger.error("Auto flow stopped because media list fetch failed.")
+        return
 
     count = await run_auto_step("Show media count", sdk.get_media_count, delay=1)
     print(f"\nMedia count: {count if count is not None else 0}")
@@ -174,6 +195,13 @@ async def handle_choice(choice, sdk):
         await run_auto_flow(sdk)
 
     elif choice == "2":
+        if not sdk.is_ble_connected():
+            connected = await scan_and_connect(sdk)
+
+            if not connected:
+                print("Could not connect for diagnostics.")
+                return True
+
         await sdk.list_services()
 
     elif choice == "3":

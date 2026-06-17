@@ -68,7 +68,8 @@ class HeyCyanMediaService:
             if response.status_code != 200:
                 logger.error("Media list request failed.")
                 print("Media list request failed.")
-                return []
+                self.media_list = []
+                return False
 
             data = response.json()
 
@@ -84,8 +85,16 @@ class HeyCyanMediaService:
                         self.media_list = data[key]
                         break
 
+                if not self.media_list:
+                    logger.error("Media list response did not contain a usable list.")
+                    print("Media list response did not contain a usable list.")
+                    return False
+
             else:
                 self.media_list = []
+                logger.error("Media list response was not a list or supported object.")
+                print("Media list response was not a list or supported object.")
+                return False
 
             logger.info(f"Media count loaded: {len(self.media_list)}")
             print(f"Media count loaded: {len(self.media_list)}")
@@ -96,7 +105,7 @@ class HeyCyanMediaService:
             print("Failed to fetch media list.")
             print("Reason:", e)
             self.media_list = []
-            return []
+            return False
 
     def get_media_count(self):
         return len(self.media_list)

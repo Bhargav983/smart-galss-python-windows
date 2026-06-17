@@ -46,5 +46,5 @@ class HeyCyanBattery:
             logger.error(f"Battery read failed: {e}")
             print("Battery read failed.")
             print("Reason:", e)
-            print("\nNext step: choose option 4 and list BLE services/characteristics.")
+            print("\nNext step: choose option 2 and list BLE services/characteristics.")
             return None

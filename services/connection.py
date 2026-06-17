@@ -1,6 +1,8 @@
 import asyncio
+import inspect
 from bleak import BleakClient
 from config import HEYCYAN_NOTIFY_CHAR_UUID
+from utils.heycyn_sdk_probe import find_notification_function, import_candidate_modules
 from utils.logger import logger
 
 
@@ -54,7 +56,7 @@ class HeyCyanConnection:
 
                     if not notification_ok:
                         print("\nBLE is connected, but notifications are not enabled yet.")
-                        print("This is okay for now. Choose option 4 to list services/characteristics.")
+                        print("This is okay for now. Choose option 2 to list services/characteristics.")
                         print("Then update HEYCYAN_NOTIFY_CHAR_UUID in config.py.")
 
                     return True
@@ -98,6 +100,12 @@ class HeyCyanConnection:
             print("BLE notifications already enabled.")
             return True
 
+        sdk_notification_ok = await self.try_sdk_notifications()
+
+        if sdk_notification_ok:
+            return True
+
+        logger.info("Using BLE UUID fallback")
         print("\nEnabling BLE notifications...")
         logger.info(f"Enabling notifications on UUID: {HEYCYAN_NOTIFY_CHAR_UUID}")
 
@@ -117,11 +125,72 @@ class HeyCyanConnection:
 
             print("Could not enable notifications with current notify UUID.")
             print("Reason:", e)
-            print("After connecting, choose option 4 to list BLE services/characteristics.")
+            print("After connecting, choose option 2 to list BLE services/characteristics.")
             print("Look for characteristic with property: notify / indicate.")
             print("Then update HEYCYAN_NOTIFY_CHAR_UUID in config.py.")
 
             logger.exception("Failed to enable BLE notifications.")
+            return False
+
+    async def try_sdk_notifications(self):
+        imported_modules, failed_imports = import_candidate_modules()
+
+        if imported_modules:
+            logger.info("HeyCyan SDK imported")
+        else:
+            logger.info("HeyCyan SDK not importable")
+
+        for module_name, error in failed_imports:
+            logger.info(f"HeyCyan SDK import failed for {module_name}: {error}")
+
+        _module, method_name, method = find_notification_function()
+
+        if not method:
+            logger.info("SDK notification method not found")
+            return False
+
+        logger.info(f"SDK notification method found: {method_name}")
+
+        try:
+            signature = inspect.signature(method)
+            params = [
+                param
+                for param in signature.parameters.values()
+                if param.default is inspect.Signature.empty
+                and param.kind in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                )
+            ]
+
+            if len(params) == 0:
+                result = method()
+            elif len(params) == 1:
+                result = method(self.client)
+            elif len(params) == 2:
+                result = method(self.client, self.notification_handler)
+            else:
+                logger.warning(
+                    f"SDK notification method found but unsupported signature: {method_name}{signature}"
+                )
+                return False
+
+            if inspect.isawaitable(result):
+                result = await result
+
+            if result is False:
+                logger.error(f"SDK notification method returned False: {method_name}")
+                return False
+
+            self.notifications_enabled = True
+            print("BLE notifications enabled using HeyCyan SDK.")
+            logger.info(f"BLE notifications enabled using SDK method: {method_name}")
+            return True
+
+        except Exception as e:
+            logger.exception(f"SDK notification method failed: {method_name}")
+            print("HeyCyan SDK notification method failed.")
+            print("Reason:", e)
             return False
 
     async def disable_notifications(self):
